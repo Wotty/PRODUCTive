@@ -1,241 +1,207 @@
-import secrets
+import datetime
+from flask import Flask, flash, render_template, request, redirect, url_for, session
 import sqlite3
-import logging
-
-from flask import (
-    Flask,
-    flash,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
+from flask_login import login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_session import Session
 
 app = Flask(__name__)
-sess = Session(app)
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    app.debug = True
-    app.config.from_pyfile("config.py")
-    app.config["DATABASE"] = "database.db"
-    sess.init_app(app)
+# Connect to the database
+conn = sqlite3.connect("fitness.db", check_same_thread=False)
+conn.row_factory = sqlite3.Row
+c = conn.cursor()
+sess = Session()
 
-    app.run()
+# Define routes
+@app.route("/")
+def index():
+    # Display a list of workouts
+    c.execute("SELECT * FROM workout")
+    workouts = c.fetchall()
+    return render_template("index.html", workouts=workouts)
 
 
+# User registration route
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Defines registration page route and method."""
-    if request.method != "POST":
-        # render registration page
+    if request.method == "POST":
+        # Get form data
+        name = request.form["name"]
+        email = request.form["email"]
+        password = request.form["password"]
+
+        # Hash password
+        password_hash = generate_password_hash(password)
+
+        # Insert user data into database
+        c.execute(
+            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+            (name, email, password_hash),
+        )
+        conn.commit()
+
+        # Log user in
+        session["email"] = email
+
+        # Redirect to homepage
+        return redirect(url_for("index"))
+    else:
         return render_template("register.html")
 
-    # handle form submission
-    name = request.form["name"]
-    email = request.form["email"]
-    password = request.form["password"]
-    confirm_password = request.form["confirm_password"]
 
-    # validate form data
-    if not (email and password and confirm_password and name):
-        error_msg = "Please fill out all fields."
-    elif password != confirm_password:
-        error_msg = "Passwords do not match."
-    else:
-        # save user data to database
-        with get_db_connection() as conn:
-            conn.execute(
-                "INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)",
-                (email, name, generate_password_hash(password)),
-            )
-            conn.commit()
-        flash("Registration successful.")
-        return redirect(url_for("login"))
-
-    # render registration page with error message
-    return render_template("register.html", error=error_msg)
-
-
-# define login page route and method
+# User login route
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # check user credentials and login
+        # Get form data
         email = request.form["email"]
         password = request.form["password"]
-        with get_db_connection() as conn:
-            user = conn.execute(
-                "SELECT * FROM users WHERE email = ?", (email,)
-            ).fetchone()
-        if user is None or not check_password_hash(user["password_hash"], password):
+
+        # Check if user exists
+        user = c.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        if user and check_password_hash(user["password_hash"], password):
+            # Log user in
+            session["email"] = email
+            print(email)
+            # Redirect to homepage
+            return redirect(url_for("index"))
+        else:
+            # Show error message
             flash("Invalid email or password.")
             return redirect(url_for("login"))
-        session["email"] = email
-        return redirect(url_for("workouts"))
     else:
-        # render login template
         return render_template("login.html")
-
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-        conn = get_db_connection()
-        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        conn.close()
-        if user is None or not check_password_hash(user["password_hash"], password):
-            flash("Invalid email or password")
-            return redirect(url_for("index"))
-        session["email"] = user["email"]
-        return redirect(url_for("workouts"))
-    return render_template("login.html")
 
 
 @app.route("/logout")
 def logout():
+    # remove the email from the session
     session.pop("email", None)
+    # redirect to the index page
     return redirect(url_for("index"))
 
 
-@app.route("/workouts/create", methods=["GET", "POST"])
+@app.route("/create_workout", methods=["GET", "POST"])
 def create_workout():
     if request.method == "POST":
+        # Insert the new workout into the database
         workout_name = request.form["workout_name"]
         body_group = request.form["body_group"]
-        email = session.get("email")
-
-        if not workout_name:
-            flash("Workout name is required.")
-        elif not body_group:
-            flash("Body group is required.")
-        elif not email:
-            flash("Email is required.")
-        else:
-            with get_db_connection() as conn:
-                conn.execute(
-                    "INSERT INTO workout (workout_name, body_group, email) VALUES (?, ?, ?)",
-                    (workout_name, body_group, email),
-                )
-                conn.commit()
-            flash("Workout created successfully.")
-
+        email = session["email"]
+        c.execute(
+            "INSERT INTO workout (workout_name, body_group, email) VALUES (?, ?, ?)",
+            (workout_name, body_group, email),
+        )
+        conn.commit()
         return redirect(url_for("index"))
     else:
+        # Display a form to add a new workout
         return render_template("create_workout.html")
 
 
-@app.route("/workouts")
-def workouts():
-    conn = get_db_connection()
-    workouts = conn.execute("SELECT * FROM workout").fetchall()
-    conn.close()
-    return render_template("workouts.html", workouts=workouts)
-
-
-@app.route("/sets/create", methods=["GET", "POST"])
-def create_set():
-    if request.method == "POST":
-        weight = request.form["weight"]
-        reps = request.form["reps"]
-        exercise_id = request.form["exercise_id"]
-        workout_id = request.form["workout_id"]
-
-        if not weight:
-            flash("Weight is required.")
-        elif not reps:
-            flash("Reps are required.")
-        elif not exercise_id:
-            flash("Exercise ID is required.")
-        elif not workout_id:
-            flash("Workout ID is required.")
-        else:
-            conn = get_db_connection()
-            conn.execute(
-                "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
-                (weight, reps, exercise_id, workout_id),
-            )
-            conn.commit()
-            conn.close()
-            flash("Set created successfully.")
-            return redirect(url_for("index"))
-
-    conn = get_db_connection()
-    exercises = conn.execute("SELECT exercise_id, name FROM exercise").fetchall()
-    workouts = conn.execute("SELECT workout_id, workout_name FROM workout").fetchall()
-    conn.close()
-
-    return render_template("create_set.html", exercises=exercises, workouts=workouts)
-
-
-@app.route("/exercises/create", methods=["GET", "POST"])
+@app.route("/create_exercise", methods=["GET", "POST"])
 def create_exercise():
     if request.method == "POST":
+        # Insert the new exercise into the database
         name = request.form["name"]
         body_group = request.form["body_group"]
         description = request.form["description"]
         video_link = request.form["video_link"]
-
-        if not name:
-            flash("Exercise name is required.")
-        elif not body_group:
-            flash("Body group is required.")
-        elif not description:
-            flash("Description is required.")
-        else:
-            conn = get_db_connection()
-            conn.execute(
-                "INSERT INTO exercise (name, body_group, description, video_link) VALUES (?, ?, ?, ?)",
-                (name, body_group, description, video_link),
-            )
-            conn.commit()
-            conn.close()
-            flash("Exercise created successfully.")
-            return redirect(url_for("index"))
-
-    return render_template("create_exercise.html")
-
-
-def get_db_connection():
-    conn = sqlite3.connect(app.config["DATABASE"])
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-@app.route("/workouts/<int:workout_id>/log_sets", methods=["GET", "POST"])
-def log_sets(workout_id):
-    with get_db_connection() as conn:
-        workout = conn.execute(
-            "SELECT * FROM workout WHERE workout_id = ?", (workout_id,)
-        ).fetchone()
-        exercises = conn.execute("SELECT * FROM exercise").fetchall()
-
-    if request.method != "POST":
-        return render_template("log_sets.html", workout=workout, exercises=exercises)
-
-    exercise_id = request.form["exercise"]
-    weight = request.form["weight"]
-    reps = request.form["reps"]
-
-    if not exercise_id:
-        flash("Exercise is required.")
-    elif not weight:
-        flash("Weight is required.")
-    elif not reps:
-        flash("Reps are required.")
+        c.execute(
+            "INSERT INTO exercise (name, body_group, description, video_link) VALUES (?, ?, ?, ?)",
+            (name, body_group, description, video_link),
+        )
+        conn.commit()
+        return redirect(url_for("index"))
     else:
-        with get_db_connection() as conn:
-            conn.execute(
-                "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
-                (weight, reps, exercise_id, workout_id),
-            )
-            conn.commit()
+        # Display a form to add a new exercise
+        return render_template("create_exercise.html")
 
-        flash("Sets logged successfully.")
 
-    return redirect(url_for("view_workout", workout_id=workout_id))
+@app.route("/workout/<int:workout_id>")
+def view_workout(workout_id):
+    # Display the details of a specific workout
+    c.execute("SELECT * FROM workout WHERE workout_id = ?", (workout_id,))
+    workout = c.fetchone()
+    c.execute(
+        "SELECT exercise.*, sets.weight, sets.reps FROM exercise JOIN sets ON exercise.exercise_id = sets.exercise_id WHERE sets.workout_id = ?",
+        (workout_id,),
+    )
+    exercises = c.fetchall()
+    return render_template("workout.html", workout=workout, exercises=exercises)
+
+
+@app.route("/edit_workout/<int:workout_id>", methods=["GET", "POST"])
+def edit_workout(workout_id):
+    workout = c.execute(
+        "SELECT * FROM workout WHERE workout_id = ?", (workout_id,)
+    ).fetchone()
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        body_group = request.form["body_group"]
+
+        c.execute(
+            "UPDATE workout SET workout_name = ?, email = ?, body_group = ? WHERE workout_id = ?",
+            (
+                name,
+                email,
+                body_group,
+                workout_id,
+            ),
+        )
+        flash("Workout updated successfully", "success")
+        return redirect(url_for("view_workout", workout_id=workout_id))
+    return render_template("edit_workout.html", workout=workout)
+
+
+@app.route("/delete_workout/<int:workout_id>", methods=["POST"])
+def delete_workout(workout_id):
+    c.execute("DELETE FROM workout WHERE workout_id = ?", (workout_id,))
+    conn.commit()
+    flash("Workout deleted successfully", "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/create_set", methods=["POST", "GET"])
+def create_set():
+
+    if request.method == "POST":
+        # Insert the new exercise into the database
+        weight = request.form["weight"]
+        reps = request.form["reps"]
+        exercise_id = request.form["exercise_id"]
+        workout_id = request.form["workout_id"]
+        c.execute(
+            "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
+            (weight, reps, exercise_id, workout_id),
+        )
+        conn.commit()
+        return redirect(url_for("view_workout", workout_id=workout_id))
+    else:
+        # Display a list of workouts
+        c.execute("SELECT * FROM workout")
+        workouts = c.fetchall()
+        c.execute("SELECT * FROM exercise")
+        exercises = c.fetchall()
+        # Display a form to add a new exercise
+        return render_template(
+            "create_set.html", workouts=workouts, exercises=exercises
+        )
+
+    # Insert a new set into the database
+
+
+# Run the application
+if __name__ == "__main__":
+    # Quick test configuration. Please use proper Flask configuration options
+    # in production settings, and use a separate file or environment variables
+    # to manage the secret key!
+    app.secret_key = "super d key"
+    app.config["SESSION_TYPE"] = "filesystem"
+
+    sess.init_app(app)
+
+    app.debug = True
+    app.run()

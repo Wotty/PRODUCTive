@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block content %}
+<h1>Workout</h1>
+
+<h2>{{ workout.workout_name }}</h2>
+
+<ul>
+    {% for exercise in exercises %}
+    <!-- TODO: ADD exercise reps to 'exercise' -->
+    <li>{{ exercise.name }} - {{ exercise.weight }}kg {{ exercise.reps }} reps, for body group {{ exercise.body_group }}</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}
