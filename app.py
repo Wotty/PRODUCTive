@@ -1,4 +1,5 @@
 import datetime
+import secrets
 from flask import Flask, flash, render_template, request, redirect, url_for, session
 import sqlite3
 from flask_login import login_required
@@ -100,32 +101,13 @@ def create_workout():
         return render_template("create_workout.html")
 
 
-@app.route("/create_exercise", methods=["GET", "POST"])
-def create_exercise():
-    if request.method == "POST":
-        # Insert the new exercise into the database
-        name = request.form["name"]
-        body_group = request.form["body_group"]
-        description = request.form["description"]
-        video_link = request.form["video_link"]
-        c.execute(
-            "INSERT INTO exercise (name, body_group, description, video_link) VALUES (?, ?, ?, ?)",
-            (name, body_group, description, video_link),
-        )
-        conn.commit()
-        return redirect(url_for("index"))
-    else:
-        # Display a form to add a new exercise
-        return render_template("create_exercise.html")
-
-
 @app.route("/workout/<int:workout_id>")
 def view_workout(workout_id):
     # Display the details of a specific workout
     c.execute("SELECT * FROM workout WHERE workout_id = ?", (workout_id,))
     workout = c.fetchone()
     c.execute(
-        "SELECT exercise.*, sets.weight, sets.reps FROM exercise JOIN sets ON exercise.exercise_id = sets.exercise_id WHERE sets.workout_id = ?",
+        "SELECT exercise.*,sets.set_id, sets.created, sets.weight, sets.reps FROM exercise JOIN sets ON exercise.exercise_id = sets.exercise_id WHERE sets.workout_id = ?",
         (workout_id,),
     )
     exercises = c.fetchall()
@@ -164,6 +146,75 @@ def delete_workout(workout_id):
     return redirect(url_for("index"))
 
 
+@app.route("/create_exercise", methods=["GET", "POST"])
+def create_exercise():
+    if request.method == "POST":
+        # Insert the new exercise into the database
+        name = request.form["name"]
+        body_group = request.form["body_group"]
+        description = request.form["description"]
+        video_link = request.form["video_link"]
+        c.execute(
+            "INSERT INTO exercise (name, body_group, description, video_link) VALUES (?, ?, ?, ?)",
+            (name, body_group, description, video_link),
+        )
+        conn.commit()
+        return redirect(url_for("index"))
+    else:
+        # Display a form to add a new exercise
+        return render_template("create_exercise.html")
+
+
+# Define routes
+@app.route("/exercises")
+def exercises():
+    # Display a list of workouts
+    c.execute("SELECT * FROM exercise")
+    exercises = c.fetchall()
+    return render_template("exercises.html", exercises=exercises)
+
+
+@app.route("/view_exercise/<int:exercise_id>")
+def view_exercise(exercise_id):
+    exercise = c.execute(
+        "SELECT * FROM exercise WHERE exercise_id = ?", (exercise_id,)
+    ).fetchone()
+
+    return render_template("view_exercise.html", exercise=exercise)
+
+
+@app.route("/edit_exercise/<int:exercise_id>", methods=["GET", "POST"])
+def edit_exercise(exercise_id):
+    exercise = c.execute(
+        "SELECT * FROM exercise WHERE exercise_id = ?", (exercise_id,)
+    ).fetchone()
+
+    if request.method == "POST":
+        name = request.form["exercise_name"]
+        description = request.form["description"]
+        body_group = request.form["body_group"]
+        video_link = request.form["video_link"]
+        created = request.form["created"]
+        c.execute(
+            "UPDATE exercise SET name = ?, description = ?, body_group = ?, video_link = ? WHERE exercise_id = ?",
+            (name, description, body_group, video_link, exercise_id),
+        )
+
+        conn.commit()
+        flash("Exercise updated successfully", "success")
+        return redirect(url_for("exercises"))
+
+    return render_template("edit_exercise.html", exercise=exercise)
+
+
+@app.route("/delete_exercise/<int:exercise_id>", methods=["POST"])
+def delete_exercise(exercise_id):
+    c.execute("DELETE FROM exercise WHERE exercise_id = ?", (exercise_id,))
+    conn.commit()
+    flash("Exercise deleted successfully", "success")
+    return redirect(url_for("exercises"))
+
+
 @app.route("/create_set", methods=["POST", "GET"])
 def create_set():
 
@@ -190,6 +241,32 @@ def create_set():
             "create_set.html", workouts=workouts, exercises=exercises
         )
 
+
+@app.route("/edit_set/<int:set_id>", methods=["GET", "POST"])
+def edit_set(set_id):
+    set = c.execute("SELECT * FROM sets WHERE set_id = ?", (set_id,)).fetchone()
+    if request.method == "POST":
+        weight = request.form["weight"]
+        reps = request.form["reps"]
+        c.execute(
+            "UPDATE sets SET weight = ?, reps = ? WHERE set_id = ?",
+            (weight, reps, set_id),
+        )
+        conn.commit()
+        flash("Set updated successfully", "success")
+        print(set)
+        return redirect(url_for("view_workout", workout_id=set[5]))
+    return render_template("edit_set.html", set=set)
+
+
+@app.route("/delete_set/<int:set_id>", methods=["POST"])
+def delete_set(set_id):
+    set = c.execute("SELECT * FROM sets WHERE set_id = ?", (set_id,)).fetchone()
+    c.execute("DELETE FROM sets WHERE set_id = ?", (set_id,))
+    conn.commit()
+    flash("Set deleted successfully", "success")
+    return redirect(url_for("view_workout", workout_id=set[5]))
+
     # Insert a new set into the database
 
 
@@ -198,7 +275,7 @@ if __name__ == "__main__":
     # Quick test configuration. Please use proper Flask configuration options
     # in production settings, and use a separate file or environment variables
     # to manage the secret key!
-    app.secret_key = "super d key"
+    app.secret_key = secrets.token_hex(16)
     app.config["SESSION_TYPE"] = "filesystem"
 
     sess.init_app(app)

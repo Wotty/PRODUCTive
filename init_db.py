@@ -4,6 +4,10 @@ import sqlite3
 conn = sqlite3.connect("fitness.db", check_same_thread=False)
 c = conn.cursor()
 
+c.execute(" DROP TABLE IF EXISTS sets;")
+c.execute("DROP TABLE IF EXISTS workout;")
+c.execute("DROP TABLE IF EXISTS exercise;")
+c.execute("DROP TABLE IF EXISTS users;")
 # Create the exercise table
 c.execute(
     """CREATE TABLE exercise (

@@ -16,17 +16,24 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item {% if request.path == url_for('index') %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    <a class="nav-link" href="{{ url_for('index') }}">Workouts</a>
+                </li>
+                {% if session['email'] is defined %}
+                <li class="nav-item {% if request.path == url_for('exercises') %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('exercises') }}">Exercises</a>
                 </li>
                 <li class="nav-item {% if request.path == url_for('create_workout') %}active{% endif %}">
                     <a class="nav-link" href="{{ url_for('create_workout') }}">Create Workout</a>
                 </li>
-                <li class="nav-item {% if request.path == url_for('create_exercise') %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('create_exercise') }}">Create Exercise</a>
-                </li>
+
                 <li class="nav-item {% if request.path == url_for('create_set') %}active{% endif %}">
                     <a class="nav-link" href="{{ url_for('create_set') }}">Add sets</a>
                 </li>
+                {% endif %}
+                <li class="nav-item {% if request.path == url_for('create_exercise') %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('create_exercise') }}">Create Exercise</a>
+                </li>
+
             </ul>
             <ul class="navbar-nav ml-auto">
                 {% if session['email'] is defined %}
