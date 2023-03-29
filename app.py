@@ -18,7 +18,11 @@ sess = Session()
 @app.route("/")
 def index():
     # Display a list of workouts
-    c.execute("SELECT * FROM workout")
+    try:
+        email = session["email"]
+        c.execute("SELECT * FROM workout WHERE email = ?", (email,))
+    except:
+        c.execute("SELECT * FROM workout")
     workouts = c.fetchall()
     return render_template("index.html", workouts=workouts)
 
@@ -194,7 +198,6 @@ def edit_exercise(exercise_id):
         description = request.form["description"]
         body_group = request.form["body_group"]
         video_link = request.form["video_link"]
-        created = request.form["created"]
         c.execute(
             "UPDATE exercise SET name = ?, description = ?, body_group = ?, video_link = ? WHERE exercise_id = ?",
             (name, description, body_group, video_link, exercise_id),
@@ -215,31 +218,51 @@ def delete_exercise(exercise_id):
     return redirect(url_for("exercises"))
 
 
-@app.route("/create_set", methods=["POST", "GET"])
-def create_set():
-
-    if request.method == "POST":
-        # Insert the new exercise into the database
-        weight = request.form["weight"]
-        reps = request.form["reps"]
-        exercise_id = request.form["exercise_id"]
-        workout_id = request.form["workout_id"]
-        c.execute(
-            "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
-            (weight, reps, exercise_id, workout_id),
-        )
-        conn.commit()
-        return redirect(url_for("view_workout", workout_id=workout_id))
+@app.route("/create_set", defaults={"workout_id": None}, methods=["POST", "GET"])
+@app.route("/create_set/<int:workout_id>", methods=["POST", "GET"])
+def create_set(workout_id):
+    if workout_id == None:
+        if request.method == "POST":
+            # Insert the new exercise into the database
+            weight = request.form["weight"]
+            reps = request.form["reps"]
+            exercise_id = request.form["exercise_id"]
+            workout_id = request.form["workout_id"]
+            c.execute(
+                "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
+                (weight, reps, exercise_id, workout_id),
+            )
+            conn.commit()
+            return redirect(url_for("view_workout", workout_id=workout_id))
+        else:
+            # Display a list of workouts
+            c.execute("SELECT * FROM workout")
+            workouts = c.fetchall()
+            c.execute("SELECT * FROM exercise")
+            exercises = c.fetchall()
+            # Display a form to add a new exercise
+            return render_template(
+                "create_set.html", workouts=workouts, exercises=exercises
+            )
     else:
-        # Display a list of workouts
-        c.execute("SELECT * FROM workout")
-        workouts = c.fetchall()
-        c.execute("SELECT * FROM exercise")
-        exercises = c.fetchall()
-        # Display a form to add a new exercise
-        return render_template(
-            "create_set.html", workouts=workouts, exercises=exercises
-        )
+        if request.method == "POST":
+            # Insert the new exercise into the database
+            weight = request.form["weight"]
+            reps = request.form["reps"]
+            exercise_id = request.form["exercise_id"]
+            c.execute(
+                "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
+                (weight, reps, exercise_id, workout_id),
+            )
+            conn.commit()
+            return redirect(url_for("view_workout", workout_id=workout_id))
+        else:
+            c.execute("SELECT * FROM exercise")
+            exercises = c.fetchall()
+            # Display a form to add a new exercise
+            return render_template(
+                "create_set.html", workout_id=workout_id, exercises=exercises
+            )
 
 
 @app.route("/edit_set/<int:set_id>", methods=["GET", "POST"])
@@ -248,9 +271,11 @@ def edit_set(set_id):
     if request.method == "POST":
         weight = request.form["weight"]
         reps = request.form["reps"]
+        created = request.form["created"]
+
         c.execute(
-            "UPDATE sets SET weight = ?, reps = ? WHERE set_id = ?",
-            (weight, reps, set_id),
+            "UPDATE sets SET weight = ?, reps = ?, created = ? WHERE set_id = ?",
+            (weight, reps, created, set_id),
         )
         conn.commit()
         flash("Set updated successfully", "success")

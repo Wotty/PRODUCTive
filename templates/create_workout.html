@@ -19,7 +19,12 @@
               <option value="Shoulders">Shoulders</option>
             </select>
                 </div>
-
+                {% if session['email'] is not defined %}
+                <div class="form-group">
+                    <label for="email">Email Account:</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+                {% endif %}
                 <button type="submit" class="btn btn-primary">Create Workout</button>
             </form>
         </div>

@@ -17,6 +17,7 @@
                 {% endfor %}
             </select>
     </div>
+    {%if workout_id == None %}
     <div>
         <label for="workout_id">Workout:</label>
         <select name="workout_id" id="workout_id" required>
@@ -25,6 +26,7 @@
                 {% endfor %}
             </select>
     </div>
+    {% endif %}
     <button type="submit">Create Set</button>
 </form>
 {% endblock %}

@@ -9,7 +9,12 @@
         <label for="reps">Reps:</label>
         <input type="number" class="form-control" id="reps" name="reps" min="1" value="{{ set.reps }}">
     </div>
+    <div class="form-group">
+        <label for="reps">Date completed:</label>
+        <input type="datetime-local" id="created" name="created" value="{{set['created']}}" min="" max="">
+    </div>
     <button type="submit" class="btn btn-primary">Update Set</button>
     <a href="{{ url_for('view_workout',workout_id=set.workout_id) }}" class="btn btn-secondary">Cancel</a>
+
 </form>
 {% endblock %}

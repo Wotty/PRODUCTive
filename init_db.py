@@ -58,31 +58,31 @@ exercises = [
         "Squats",
         "Legs",
         "Squat down, keeping your back straight",
-        "https://www.youtube.com/watch?v=ultWZbUMPL8",
+        "https://www.youtube.com/embed/ultWZbUMPL8",
     ),
     (
         "Bench Press",
         "Chest",
         "Lift the bar up and down while lying on a bench",
-        "https://www.youtube.com/watch?v=OwJ-gx0UoSE",
+        "https://www.youtube.com/embed/OwJ-gx0UoSE",
     ),
     (
         "Deadlifts",
         "Back",
         "Lift the bar off the ground and stand up straight",
-        "https://www.youtube.com/watch?v=op9kVnSso6Q",
+        "https://www.youtube.com/embed/op9kVnSso6Q",
     ),
     (
         "Pushups",
         "Chest",
         "Lower your body down to the ground and then push back up",
-        "https://www.youtube.com/watch?v=IODxDxX7oi4",
+        "https://www.youtube.com/embed/IODxDxX7oi4",
     ),
     (
         "Pullups",
         "Back",
         "Lift your body up towards the bar and then lower back down",
-        "https://www.youtube.com/watch?v=6kALZikXxLc",
+        "https://www.youtube.com/embed/6kALZikXxLc",
     ),
 ]
 c.executemany(
