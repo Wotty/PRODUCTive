@@ -12,7 +12,6 @@ app = Flask(__name__)
 conn = sqlite3.connect("fitness.db", check_same_thread=False)
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
-sess = Session()
 
 # Define routes
 @app.route("/")
@@ -221,48 +220,36 @@ def delete_exercise(exercise_id):
 @app.route("/create_set", defaults={"workout_id": None}, methods=["POST", "GET"])
 @app.route("/create_set/<int:workout_id>", methods=["POST", "GET"])
 def create_set(workout_id):
-    if workout_id == None:
-        if request.method == "POST":
-            # Insert the new exercise into the database
-            weight = request.form["weight"]
-            reps = request.form["reps"]
-            exercise_id = request.form["exercise_id"]
+    if request.method == "POST":
+        # Insert the new exercise into the database
+        weight = request.form["weight"]
+        reps = request.form["reps"]
+        exercise_id = request.form["exercise_id"]
+        if workout_id == None:
             workout_id = request.form["workout_id"]
-            c.execute(
-                "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
-                (weight, reps, exercise_id, workout_id),
-            )
-            conn.commit()
-            return redirect(url_for("view_workout", workout_id=workout_id))
-        else:
-            # Display a list of workouts
-            c.execute("SELECT * FROM workout")
-            workouts = c.fetchall()
-            c.execute("SELECT * FROM exercise")
-            exercises = c.fetchall()
-            # Display a form to add a new exercise
-            return render_template(
-                "create_set.html", workouts=workouts, exercises=exercises
-            )
+        c.execute(
+            "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
+            (weight, reps, exercise_id, workout_id),
+        )
+        conn.commit()
+        return redirect(url_for("view_workout", workout_id=workout_id))
     else:
-        if request.method == "POST":
-            # Insert the new exercise into the database
-            weight = request.form["weight"]
-            reps = request.form["reps"]
-            exercise_id = request.form["exercise_id"]
-            c.execute(
-                "INSERT INTO sets (weight, reps, exercise_id, workout_id) VALUES (?, ?, ?, ?)",
-                (weight, reps, exercise_id, workout_id),
-            )
-            conn.commit()
-            return redirect(url_for("view_workout", workout_id=workout_id))
-        else:
-            c.execute("SELECT * FROM exercise")
-            exercises = c.fetchall()
-            # Display a form to add a new exercise
+        # Display a list of workouts
+        c.execute("SELECT * FROM workout")
+        workouts = c.fetchall()
+        c.execute("SELECT * FROM exercise")
+        exercises = c.fetchall()
+        # Display a form to add a new exercise
+        if workout_id == None:
             return render_template(
-                "create_set.html", workout_id=workout_id, exercises=exercises
+                "create_set.html",
+                workouts=workouts,
+                exercises=exercises,
+                workout_id=None,
             )
+        return render_template(
+            "create_set.html", workout_id=workout_id, exercises=exercises
+        )
 
 
 @app.route("/edit_set/<int:set_id>", methods=["GET", "POST"])
@@ -302,8 +289,5 @@ if __name__ == "__main__":
     # to manage the secret key!
     app.secret_key = secrets.token_hex(16)
     app.config["SESSION_TYPE"] = "filesystem"
-
-    sess.init_app(app)
-
     app.debug = True
     app.run()

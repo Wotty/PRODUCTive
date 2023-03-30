@@ -3,7 +3,7 @@
     <h1>Workout</h1>
 
     <h2>{{ workout.workout_name }}</h2>
-    <a class="btn btn-primary" href="{{ url_for('create_set') }}">Add sets</a>
+    <a class="btn btn-primary" href="{{ url_for('create_set',workout_id=workout.workout_id) }}">Add sets</a>
     <a class="btn btn-primary" href="{{ url_for('index') }}">View All Workouts</a>
     <ul class="list-group">
         {% for exercise in exercises %}
