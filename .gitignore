@@ -133,3 +133,12 @@ app.*.symbols
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
 !.vscode/settings.json
+
+# Firebase config files
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Other generated files
+android/app/build/
+ios/Runner/Pods/
+ios/Runner/Flutter/
